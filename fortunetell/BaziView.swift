@@ -1,122 +1,155 @@
 import SwiftUI
+import UIKit
 
 struct BaziView: View {
     @StateObject private var viewModel = BaziViewModel()
     @State private var showDatePicker = false
+    @State private var showSettings = false
     
     var body: some View {
-        ZStack {
-            // 背景色 - 淡黄色背景，类似古纸
-            Color(red: 0.98, green: 0.95, blue: 0.85)
-                .edgesIgnoringSafeArea(.all)
-            
-            VStack(spacing: 20) {
-                // 顶部标题
-                Text("生辰八字")
-                    .font(.system(size: 36, weight: .bold, design: .serif))
-                    .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1)) // 暗红色，传统中国色
-                    .padding(.top)
+        NavigationView {
+            ZStack {
+                // 背景色 - 淡黄色背景，类似古纸
+                Color(red: 0.98, green: 0.95, blue: 0.85)
+                    .edgesIgnoringSafeArea(.all)
                 
-                // 副标题
-                Text("传统中华命理学")
-                    .font(.system(size: 16, design: .serif))
-                    .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                    .padding(.bottom, 10)
-                
-                // 出生日期选择
-                VStack(alignment: .leading) {
-                    Text("选择出生日期和时间:")
-                        .font(.headline)
-                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                    
-                    Button(action: {
-                        showDatePicker = true
-                    }) {
-                        HStack {
-                            Text(formatDate(viewModel.baziModel.birthDate))
-                                .foregroundColor(.black)
-                            Spacer()
-                            Image(systemName: "calendar")
-                                .foregroundColor(Color(red: 0.6, green: 0.3, blue: 0.1))
+                // 将整个内容放入ScrollView中
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 顶部标题
+                        Text("生辰八字")
+                            .font(.system(size: 36, weight: .bold, design: .serif))
+                            .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1)) // 暗红色，传统中国色
+                            .padding(.top)
+                        
+                        // 副标题
+                        Text("传统中华命理学")
+                            .font(.system(size: 16, design: .serif))
+                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            .padding(.bottom, 10)
+                        
+                        // 出生日期选择
+                        VStack(alignment: .leading) {
+                            Text("选择出生日期和时间:")
+                                .font(.headline)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            
+                            Button(action: {
+                                showDatePicker = true
+                            }) {
+                                HStack {
+                                    Text(formatDate(viewModel.baziModel.birthDate))
+                                        .foregroundColor(.black)
+                                    Spacer()
+                                    Image(systemName: "calendar")
+                                        .foregroundColor(Color(red: 0.6, green: 0.3, blue: 0.1))
+                                }
+                                .padding()
+                                .background(Color(white: 1, opacity: 0.7))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(red: 0.6, green: 0.3, blue: 0.1), lineWidth: 1)
+                                )
+                            }
                         }
-                        .padding()
-                        .background(Color(white: 1, opacity: 0.7))
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(Color(red: 0.6, green: 0.3, blue: 0.1), lineWidth: 1)
-                        )
-                    }
-                }
-                .padding(.horizontal)
-                
-                // 性别选择
-                VStack(alignment: .leading) {
-                    Text("选择性别:")
-                        .font(.headline)
-                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                    
-                    Picker("性别", selection: $viewModel.baziModel.gender) {
-                        ForEach(BaziModel.Gender.allCases) { gender in
-                            Text(gender.rawValue).tag(gender)
+                        .padding(.horizontal)
+                        
+                        // 性别选择
+                        VStack(alignment: .leading) {
+                            Text("选择性别:")
+                                .font(.headline)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            
+                            Picker("性别", selection: $viewModel.baziModel.gender) {
+                                ForEach(BaziModel.Gender.allCases) { gender in
+                                    Text(gender.rawValue).tag(gender)
+                                }
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .padding(.vertical, 5)
                         }
+                        .padding(.horizontal)
+                        
+                        // 解读按钮
+                        Button(action: {
+                            // 先设置isLoading为true
+                            viewModel.baziModel.isLoading = true
+                            
+                            // 强制UI更新
+                            DispatchQueue.main.async {
+                                // 再次确认isLoading状态，强制UI刷新
+                                viewModel.baziModel.isLoading = true
+                                
+                                // 直接执行解读，不需要延迟
+                                Task {
+                                    await viewModel.performBaziAnalysis()
+                                }
+                            }
+                        }) {
+                            Text("开始解读")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(red: 0.7, green: 0.2, blue: 0.1))
+                                .cornerRadius(10)
+                        }
+                        .padding(.horizontal)
+                        .disabled(viewModel.baziModel.isLoading)
+                        .id("bazi_button_\(viewModel.baziModel.isLoading)")
+                        
+                        // 加载指示器
+                        if viewModel.baziModel.isLoading {
+                            ProgressView("正在解读八字...")
+                                .padding()
+                                .id(UUID()) // 添加唯一ID确保每次状态变化时视图都会刷新
+                        }
+                        
+                        // 结果区域
+                        VStack(alignment: .leading, spacing: 15) {
+                            if !viewModel.baziModel.fullBazi.isEmpty {
+                                // 八字结果
+                                BaziResultView(
+                                    yearPillar: viewModel.baziModel.yearPillar,
+                                    monthPillar: viewModel.baziModel.monthPillar,
+                                    dayPillar: viewModel.baziModel.dayPillar,
+                                    hourPillar: viewModel.baziModel.hourPillar
+                                )
+                            }
+                            
+                            if !viewModel.baziModel.interpretation.isEmpty {
+                                ResultSectionView(title: "八字解读", content: viewModel.baziModel.interpretation)
+                            }
+                        }
+                        .padding(.horizontal)
+                        
+                        Spacer(minLength: 20)
                     }
-                    .pickerStyle(SegmentedPickerStyle())
-                    .padding(.vertical, 5)
+                    .padding(.bottom, 20)
+                    .id("bazi_content_\(viewModel.baziModel.isLoading)_\(viewModel.baziModel.fullBazi.isEmpty)_\(viewModel.baziModel.interpretation.isEmpty)") // 添加动态ID确保状态变化时内容刷新
                 }
-                .padding(.horizontal)
-                
-                // 解读按钮
-                Button(action: {
-                    // 先设置isLoading为true
-                    viewModel.baziModel.isLoading = true
-                    
-                    // 使用主线程延迟启动异步任务，确保UI先更新
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                .navigationBarItems(trailing: Button(action: {
+                    showSettings = true
+                }) {
+                    Image(systemName: "gear")
+                        .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+                })
+                .sheet(isPresented: $showSettings) {
+                    BaziSettingsView(viewModel: viewModel)
+                }
+                .alert("设置API Key", isPresented: $viewModel.showingAPIKeyAlert) {
+                    TextField("请输入DeepSeek API Key", text: $viewModel.apiKeyInput)
+                    Button("保存") {
+                        viewModel.saveAPIKey()
                         Task {
                             await viewModel.performBaziAnalysis()
                         }
                     }
-                }) {
-                    Text("开始解读")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(Color(red: 0.7, green: 0.2, blue: 0.1))
-                        .cornerRadius(10)
+                    Button("取消", role: .cancel) { }
+                } message: {
+                    Text("请输入您的DeepSeek API Key以继续使用八字解读功能")
                 }
-                .padding(.horizontal)
-                .disabled(viewModel.baziModel.isLoading)
-                
-                // 加载指示器
-                if viewModel.baziModel.isLoading {
-                    ProgressView("正在解读八字...")
-                        .padding()
-                }
-                
-                // 结果区域
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 15) {
-                        if !viewModel.baziModel.fullBazi.isEmpty {
-                            // 八字结果
-                            BaziResultView(
-                                yearPillar: viewModel.baziModel.yearPillar,
-                                monthPillar: viewModel.baziModel.monthPillar,
-                                dayPillar: viewModel.baziModel.dayPillar,
-                                hourPillar: viewModel.baziModel.hourPillar
-                            )
-                        }
-                        
-                        if !viewModel.baziModel.interpretation.isEmpty {
-                            ResultSectionView(title: "八字解读", content: viewModel.baziModel.interpretation)
-                        }
-                    }
-                    .padding(.horizontal)
-                }
-                .frame(maxWidth: .infinity)
-                
-                Spacer()
             }
             .sheet(isPresented: $showDatePicker) {
                 DatePickerView(selectedDate: $viewModel.baziModel.birthDate, isPresented: $showDatePicker)
@@ -132,6 +165,42 @@ struct BaziView: View {
     }
 }
 
+// 八字设置视图
+struct BaziSettingsView: View {
+    @ObservedObject var viewModel: BaziViewModel
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // 背景色 - 淡黄色背景，类似古纸
+                Color(red: 0.98, green: 0.95, blue: 0.85)
+                    .edgesIgnoringSafeArea(.all)
+                
+                Form {
+                    Section(header: Text("关于").foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))) {
+                        Text("生辰八字是中国传统命理学的重要组成部分，通过分析一个人出生时的年、月、日、时四柱天干地支，来推断其命运走向、性格特点、事业发展等。")
+                            .font(.system(size: 14, design: .serif))
+                        Text("本应用使用DeepSeek AI进行八字解读。")
+                            .font(.system(size: 14, design: .serif))
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        presentationMode.wrappedValue.dismiss()
+                    }
+                    .foregroundColor(Color(red: 0.7, green: 0.2, blue: 0.1))
+                }
+            }
+        }
+    }
+}
+
 // 八字结果视图
 struct BaziResultView: View {
     let yearPillar: String
@@ -141,9 +210,23 @@ struct BaziResultView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("您的八字")
-                .font(.system(size: 18, weight: .bold, design: .serif))
-                .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+            HStack {
+                Text("您的八字")
+                    .font(.system(size: 18, weight: .bold, design: .serif))
+                    .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+                
+                Spacer()
+                
+                // 添加复制按钮
+                Button(action: {
+                    let baziText = "年柱: \(yearPillar)\n月柱: \(monthPillar)\n日柱: \(dayPillar)\n时柱: \(hourPillar)"
+                    UIPasteboard.general.string = baziText
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+                }
+                .buttonStyle(BorderlessButtonStyle())
+            }
             
             HStack(spacing: 20) {
                 PillarView(title: "年柱", content: yearPillar)

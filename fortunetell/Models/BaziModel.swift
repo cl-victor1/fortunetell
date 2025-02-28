@@ -33,16 +33,27 @@ class BaziModel: ObservableObject {
     
     // 计算生辰八字
     func calculateBazi() async {
-        // 注意：isLoading已经在视图中设置为true，这里不再设置
+        // 确保isLoading为true并强制UI更新
         DispatchQueue.main.async {
-            // 只清空结果，不设置isLoading
+            // 清空结果
             self.yearPillar = ""
             self.monthPillar = ""
             self.dayPillar = ""
             self.hourPillar = ""
             self.fullBazi = ""
             self.interpretation = ""
+            
+            // 设置加载状态并强制UI刷新
+            self.isLoading = true
+            
+            // 再次设置以确保UI更新
+            DispatchQueue.main.async {
+                self.isLoading = true
+            }
         }
+        
+        // 等待一小段时间确保UI已更新
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         
         // 将公历日期转换为农历日期
         let lunarDate = convertToLunarDate(from: birthDate)
@@ -60,9 +71,7 @@ class BaziModel: ObservableObject {
             // 调用DeepSeek API获取解释
             await getInterpretation(for: self.fullBazi)
             
-            DispatchQueue.main.async {
-                self.isLoading = false
-            }
+            // 注意：isLoading状态已在getInterpretation方法中设置为false
             return
         }
         
@@ -90,10 +99,6 @@ class BaziModel: ObservableObject {
         
         // 调用DeepSeek API获取解释
         await getInterpretation(for: fullBazi)
-        
-        DispatchQueue.main.async {
-            self.isLoading = false
-        }
     }
     
     // 将公历日期转换为农历日期
@@ -302,10 +307,18 @@ class BaziModel: ObservableObject {
             return
         }
         
-        // 在获取解释之前更新UI，确保用户看到加载状态
+        // 确保用户看到加载状态
         DispatchQueue.main.async {
             self.isLoading = true
+            
+            // 再次设置以确保UI更新
+            DispatchQueue.main.async {
+                self.isLoading = true
+            }
         }
+        
+        // 等待一小段时间确保UI已更新
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         
         let prompt = """
         作为一位精通中国传统命理学的专业命理师，请对以下生辰八字进行详细解读：
@@ -363,6 +376,10 @@ class BaziModel: ObservableObject {
                 
                 DispatchQueue.main.async {
                     self.interpretation = markdownContent
+                    self.isLoading = false
+                    
+                    // 确保UI立即更新，不使用延迟
+                    NotificationCenter.default.post(name: Notification.Name("BaziCompleted"), object: nil)
                 }
             } else {
                 throw NSError(domain: "API解析错误", code: 0)
@@ -370,6 +387,10 @@ class BaziModel: ObservableObject {
         } catch {
             DispatchQueue.main.async {
                 self.interpretation = "获取解释失败: \(error.localizedDescription)"
+                self.isLoading = false
+                
+                // 确保UI立即更新，不使用延迟
+                NotificationCenter.default.post(name: Notification.Name("BaziCompleted"), object: nil)
             }
         }
     }

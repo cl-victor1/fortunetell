@@ -52,12 +52,23 @@ class DivinationModel: ObservableObject {
     
     // 执行占卜
     func performDivination() async {
-        // 注意：isLoading已经在视图中设置为true，这里不再设置
+        // 确保isLoading为true并强制UI更新
         DispatchQueue.main.async {
-            // 只清空结果，不设置isLoading
+            // 清空结果
             self.hexagramResult = ""
             self.interpretation = ""
+            
+            // 设置加载状态并强制UI刷新
+            self.isLoading = true
+            
+            // 再次设置以确保UI更新
+            DispatchQueue.main.async {
+                self.isLoading = true
+            }
         }
+        
+        // 等待一小段时间确保UI已更新
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         
         // 如果选择自动，则根据输入确定方法
         let method = selectedMethod == .automatic ? 
@@ -85,10 +96,7 @@ class DivinationModel: ObservableObject {
         // 调用DeepSeek API获取解释
         await getInterpretation(for: hexagram, question: userQuestion)
         
-        // 完成后设置isLoading为false
-        DispatchQueue.main.async {
-            self.isLoading = false
-        }
+        // 注意：isLoading状态已在getInterpretation方法中设置为false
     }
     
     // 时间起卦法
@@ -158,10 +166,18 @@ class DivinationModel: ObservableObject {
             return
         }
         
-        // 在获取解释之前更新UI，确保用户看到加载状态
+        // 确保用户看到加载状态
         DispatchQueue.main.async {
             self.isLoading = true
+            
+            // 再次设置以确保UI更新
+            DispatchQueue.main.async {
+                self.isLoading = true
+            }
         }
+        
+        // 等待一小段时间确保UI已更新
+        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒
         
         let prompt = """
         作为一位精通梅花易数的专业占卜师，请对以下卦象进行详细解读：
@@ -216,6 +232,10 @@ class DivinationModel: ObservableObject {
                 
                 DispatchQueue.main.async {
                     self.interpretation = markdownContent
+                    self.isLoading = false
+                    
+                    // 确保UI立即更新，不使用延迟
+                    NotificationCenter.default.post(name: Notification.Name("DivinationCompleted"), object: nil)
                 }
             } else {
                 throw NSError(domain: "API解析错误", code: 0)
@@ -223,6 +243,10 @@ class DivinationModel: ObservableObject {
         } catch {
             DispatchQueue.main.async {
                 self.interpretation = "获取解释失败: \(error.localizedDescription)"
+                self.isLoading = false
+                
+                // 确保UI立即更新，不使用延迟
+                NotificationCenter.default.post(name: Notification.Name("DivinationCompleted"), object: nil)
             }
         }
     }

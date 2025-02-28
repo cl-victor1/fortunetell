@@ -8,6 +8,21 @@ class DivinationViewModel: ObservableObject {
     
     init() {
         loadAPIKey()
+        
+        // 监听占卜完成通知
+        NotificationCenter.default.addObserver(self, selector: #selector(divinationCompleted), name: Notification.Name("DivinationCompleted"), object: nil)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
+    }
+    
+    // 占卜完成通知处理
+    @objc func divinationCompleted() {
+        DispatchQueue.main.async {
+            // 强制更新UI
+            self.objectWillChange.send()
+        }
     }
     
     // 保存API Key
@@ -37,12 +52,27 @@ class DivinationViewModel: ObservableObject {
                 self.showingAPIKeyAlert = true
                 // 如果需要显示API Key提示，则重置加载状态
                 self.divinationModel.isLoading = false
+                
+                // 强制发送objectWillChange通知
+                self.objectWillChange.send()
             }
             return
         }
         
-        // isLoading状态已在视图中设置，这里不再修改它
+        // 确保isLoading状态为true
+        DispatchQueue.main.async {
+            self.divinationModel.isLoading = true
+            
+            // 强制发送objectWillChange通知
+            self.objectWillChange.send()
+        }
+        
         // await直接调用model层的方法
         await divinationModel.performDivination()
+        
+        // 确保UI更新
+        DispatchQueue.main.async {
+            self.objectWillChange.send()
+        }
     }
 } 

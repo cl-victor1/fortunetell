@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ContentView: View {
     @StateObject private var divinationViewModel = DivinationViewModel()
@@ -43,84 +44,91 @@ struct DivinationTabView: View {
                 Color(red: 0.98, green: 0.95, blue: 0.85)
                     .edgesIgnoringSafeArea(.all)
                 
-                VStack(spacing: 20) {
-                    // 顶部标题
-                    Text("梅花易数")
-                        .font(.system(size: 36, weight: .bold, design: .serif))
-                        .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1)) // 暗红色，传统中国色
-                        .padding(.top)
-                    
-                    // 副标题
-                    Text("传统中华占卜术")
-                        .font(.system(size: 16, design: .serif))
-                        .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
-                        .padding(.bottom, 10)
-                    
-                    // 占卜方法选择
-                    VStack(alignment: .leading) {
-                        Text("选择起卦方式:")
-                            .font(.headline)
+                // 将整个内容放入ScrollView中
+                ScrollView {
+                    VStack(spacing: 20) {
+                        // 顶部标题
+                        Text("梅花易数")
+                            .font(.system(size: 36, weight: .bold, design: .serif))
+                            .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1)) // 暗红色，传统中国色
+                            .padding(.top)
+                        
+                        // 副标题
+                        Text("传统中华占卜术")
+                            .font(.system(size: 16, design: .serif))
                             .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            .padding(.bottom, 10)
                         
-                        Picker("占卜方法", selection: $viewModel.divinationModel.selectedMethod) {
-                            ForEach(DivinationModel.DivinationMethod.allCases) { method in
-                                Text(method.rawValue).tag(method)
+                        // 占卜方法选择
+                        VStack(alignment: .leading) {
+                            Text("选择起卦方式:")
+                                .font(.headline)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            
+                            Picker("占卜方法", selection: $viewModel.divinationModel.selectedMethod) {
+                                ForEach(DivinationModel.DivinationMethod.allCases) { method in
+                                    Text(method.rawValue).tag(method)
+                                }
                             }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .padding(.vertical, 5)
                         }
-                        .pickerStyle(SegmentedPickerStyle())
-                        .padding(.vertical, 5)
-                    }
-                    .padding(.horizontal)
-                    
-                    // 问题输入区域
-                    VStack(alignment: .leading) {
-                        Text("请输入您的问题:")
-                            .font(.headline)
-                            .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                        .padding(.horizontal)
                         
-                        TextEditor(text: $viewModel.divinationModel.userQuestion)
-                            .frame(height: 100)
-                            .padding(8)
-                            .background(Color(white: 1, opacity: 0.7))
-                            .cornerRadius(8)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(Color(red: 0.6, green: 0.3, blue: 0.1), lineWidth: 1)
-                            )
-                    }
-                    .padding(.horizontal)
-                    
-                    // 占卜按钮
-                    Button(action: {
-                        // 先设置isLoading为true
-                        viewModel.divinationModel.isLoading = true
+                        // 问题输入区域
+                        VStack(alignment: .leading) {
+                            Text("请输入您的问题:")
+                                .font(.headline)
+                                .foregroundColor(Color(red: 0.4, green: 0.2, blue: 0.1))
+                            
+                            TextEditor(text: $viewModel.divinationModel.userQuestion)
+                                .frame(height: 100)
+                                .padding(8)
+                                .background(Color(white: 1, opacity: 0.7))
+                                .cornerRadius(8)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(Color(red: 0.6, green: 0.3, blue: 0.1), lineWidth: 1)
+                                )
+                        }
+                        .padding(.horizontal)
                         
-                        // 使用主线程延迟启动异步任务，确保UI先更新
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                            Task {
-                                await viewModel.performDivination()
+                        // 占卜按钮
+                        Button(action: {
+                            // 先设置isLoading为true
+                            viewModel.divinationModel.isLoading = true
+                            
+                            // 强制UI更新
+                            DispatchQueue.main.async {
+                                // 再次确认isLoading状态，强制UI刷新
+                                viewModel.divinationModel.isLoading = true
+                                
+                                // 直接执行占卜，不需要延迟
+                                Task {
+                                    await viewModel.performDivination()
+                                }
                             }
+                        }) {
+                            Text("开始占卜")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(red: 0.7, green: 0.2, blue: 0.1))
+                                .cornerRadius(10)
                         }
-                    }) {
-                        Text("开始占卜")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(red: 0.7, green: 0.2, blue: 0.1))
-                            .cornerRadius(10)
-                    }
-                    .padding(.horizontal)
-                    .disabled(viewModel.divinationModel.isLoading)
-                    
-                    // 加载指示器
-                    if viewModel.divinationModel.isLoading {
-                        ProgressView("正在解读卦象...")
-                            .padding()
-                    }
-                    
-                    // 结果区域
-                    ScrollView {
+                        .padding(.horizontal)
+                        .disabled(viewModel.divinationModel.isLoading)
+                        .id("divination_button_\(viewModel.divinationModel.isLoading)") // 添加动态ID确保状态变化时按钮刷新
+                        
+                        // 加载指示器
+                        if viewModel.divinationModel.isLoading {
+                            ProgressView("正在占卜...")
+                                .padding()
+                                .id(UUID()) // 添加唯一ID确保每次状态变化时视图都会刷新
+                        }
+                        
+                        // 结果区域
                         VStack(alignment: .leading, spacing: 15) {
                             if !viewModel.divinationModel.hexagramResult.isEmpty {
                                 ResultSectionView(title: "卦象", content: viewModel.divinationModel.hexagramResult)
@@ -131,10 +139,11 @@ struct DivinationTabView: View {
                             }
                         }
                         .padding(.horizontal)
+                        
+                        Spacer(minLength: 20)
                     }
-                    .frame(maxWidth: .infinity)
-                    
-                    Spacer()
+                    .padding(.bottom, 20)
+                    .id("divination_content_\(viewModel.divinationModel.isLoading)_\(viewModel.divinationModel.hexagramResult.isEmpty)_\(viewModel.divinationModel.interpretation.isEmpty)") // 添加动态ID确保状态变化时内容刷新
                 }
                 .navigationBarItems(trailing: Button(action: {
                     showSettings = true
@@ -169,10 +178,23 @@ struct ResultSectionView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.system(size: 20, weight: .bold, design: .serif))
-                .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
-                .padding(.bottom, 6)
+            HStack {
+                Text(title)
+                    .font(.system(size: 20, weight: .bold, design: .serif))
+                    .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+                
+                Spacer()
+                
+                // 添加复制按钮
+                Button(action: {
+                    UIPasteboard.general.string = content
+                }) {
+                    Image(systemName: "doc.on.doc")
+                        .foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))
+                }
+                .buttonStyle(BorderlessButtonStyle())
+            }
+            .padding(.bottom, 6)
             
             MarkdownText(content)
                 .padding(.horizontal, 2)
@@ -458,21 +480,28 @@ struct SettingsView: View {
                     .edgesIgnoringSafeArea(.all)
                 
                 Form {
-                    Section(header: Text("API设置").foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))) {
-                        SecureField("DeepSeek API Key", text: $viewModel.apiKeyInput)
-                        Button("保存") {
-                            viewModel.saveAPIKey()
-                            presentationMode.wrappedValue.dismiss()
-                        }
-                        .foregroundColor(Color(red: 0.7, green: 0.2, blue: 0.1))
-                        .disabled(viewModel.apiKeyInput.isEmpty)
-                    }
+                    // Section(header: Text("API设置").foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))) {
+                    //     SecureField("DeepSeek API Key", text: $viewModel.apiKeyInput)
+                    //     Button("保存") {
+                    //         viewModel.saveAPIKey()
+                    //         presentationMode.wrappedValue.dismiss()
+                    //     }
+                    //     .foregroundColor(Color(red: 0.7, green: 0.2, blue: 0.1))
+                    //     .disabled(viewModel.apiKeyInput.isEmpty)
+                    // }
                     
                     Section(header: Text("关于").foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))) {
-                        Text("梅花易数是中国传统的占卜方法之一，通过卦象解读来回答问题。")
+                        Text("梅花易数是中国传统的占卜方法之一，通过卦象解读来回答问题。八字是根据出生日期和时间推算的命理学方法，用于分析个人性格、事业、财运等。")
                             .font(.system(size: 14, design: .serif))
                         Text("本应用使用DeepSeek AI进行卦象解读。")
                             .font(.system(size: 14, design: .serif))
+                    }
+                    Section(header: Text("专业服务").foregroundColor(Color(red: 0.6, green: 0.1, blue: 0.1))) {
+                        Text("如需更专业的八字命理分析服务，请联系:")
+                            .font(.system(size: 14, design: .serif))
+                        Text("victor.long.cheng@gmail.com")
+                            .font(.system(size: 14, design: .serif))
+                            .foregroundColor(.blue)
                     }
                 }
                 .scrollContentBackground(.hidden)
